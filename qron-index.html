@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark" />
+<title>QRON.space — The Experience Layer of Trust</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        qbg: { DEFAULT: '#0a0a1a', card: '#141428', elevated: '#1e1e3a', hover: '#252550' },
+        qviolet: { 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' },
+        qmagenta: { 400: '#e879f9', 500: '#d946ef', 600: '#c026d3' },
+        qcyan: { 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+        qgold: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+        qtext: { primary: '#e8e6f0', secondary: '#a8a4b8', muted: '#6b6780' }
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+      }
+    }
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep: #0a0a1a;
+    --bg-card: #141428;
+    --bg-elevated: #1e1e3a;
+    --violet: #8b5cf6;
+    --magenta: #d946ef;
+    --cyan: #06b6d4;
+    --gold: #f59e0b;
+    --text-primary: #e8e6f0;
+    --text-secondary: #a8a4b8;
+    --glow-violet: 0 0 30px rgba(139,92,246,0.3);
+    --glow-magenta: 0 0 30px rgba(217,70,239,0.3);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg-deep); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; overflow-x: hidden; }
+
+  .glass-card {
+    background: rgba(20,20,40,0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(139,92,246,0.15);
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+  .glass-card:hover {
+    border-color: rgba(139,92,246,0.35);
+    box-shadow: 0 0 40px rgba(139,92,246,0.1);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #8b5cf6, #d946ef, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-btn {
+    box-shadow: 0 0 20px rgba(139,92,246,0.4), 0 0 60px rgba(139,92,246,0.1);
+    transition: all 0.3s ease;
+  }
+  .glow-btn:hover {
+    box-shadow: 0 0 30px rgba(139,92,246,0.6), 0 0 80px rgba(139,92,246,0.2);
+    transform: translateY(-2px);
+  }
+
+  .section-reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .section-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .particle-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-20px) rotate(5deg); }
+    50% { transform: translateY(-10px) rotate(-3deg); }
+    75% { transform: translateY(-25px) rotate(2deg); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes count-up { from { opacity: 0.5; } to { opacity: 1; } }
+
+  .float-shape {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.08;
+    animation: float 12s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .metallic-bronze { background: linear-gradient(135deg, #8B6914, #CD853F, #8B6914); }
+  .metallic-silver { background: linear-gradient(135deg, #808080, #C0C0C0, #A9A9A9, #D3D3D3); }
+  .metallic-gold { background: linear-gradient(135deg, #B8860B, #FFD700, #DAA520, #FFD700); }
+  .metallic-platinum { background: linear-gradient(135deg, #7B68EE, #E6E6FA, #9370DB, #E6E6FA); }
+
+  .qr-art-pattern {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 2px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .qr-cell {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+  }
+
+  .timeline-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #8b5cf6, #d946ef, #06b6d4);
+    transform: translateX(-50%);
+  }
+
+  @media (max-width: 767px) {
+    .timeline-line { left: 20px; }
+  }
+
+  .tier-card { transition: all 0.4s ease; }
+  .tier-card:hover { transform: translateY(-8px) scale(1.02); }
+
+  .nav-link {
+    position: relative;
+    transition: color 0.3s ease;
+  }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #8b5cf6, #d946ef);
+    transition: width 0.3s ease;
+  }
+  .nav-link:hover::after { width: 100%; }
+
+  .contract-node {
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .contract-node:hover {
+    transform: scale(1.03);
+    box-shadow: var(--glow-violet);
+  }
+  .contract-detail { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+  .contract-detail.open { max-height: 200px; }
+
+  .layer-expand { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+  .layer-expand.open { max-height: 300px; }
+
+  .ecosystem-node {
+    transition: all 0.4s ease;
+  }
+  .ecosystem-node:hover {
+    transform: scale(1.06);
+  }
+
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #0a0a1a; }
+  ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a6a; }
+</style>
+</head>
+<body data-id="0" class="min-h-screen">
+<app-icon data-id="1" hidden data-icon="shield" data-palette="Dark"></app-icon>
+
+<!-- ===== FIXED NAV ===== -->
+<header data-id="2" id="nav-header-a1b2" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" style="background:rgba(10,10,26,0.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(139,92,246,0.1);">
+  <div data-id="3" class="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between h-16">
+    <a data-id="4" href="#" class="flex items-center gap-2 group">
+      <div data-id="5" class="w-9 h-9 rounded-lg bg-gradient-to-br from-qviolet-500 to-qmagenta-500 flex items-center justify-center font-black text-white text-lg">Q</div>
+      <span data-id="6" class="text-xl font-bold text-qtext-primary tracking-tight">QRON</span>
+    </a>
+    <nav data-id="7" id="desktop-nav-c3d4" class="hidden md:flex items-center gap-6">
+      <a data-id="8" href="#protocol-e5f6" class="nav-link text-sm text-qtext-secondary hover:text-qtext-primary">Protocol</a>
+      <a data-id="9" href="#token-g7h8" class="nav-link text-sm text-qtext-secondary hover:text-qtext-primary">Token</a>
+      <a data-id="10" href="#staking-i9j0" class="nav-link text-sm text-qtext-secondary hover:text-qtext-primary">Staking</a>
+      <a data-id="11" href="#pricing-k1l2" class="nav-link text-sm text-qtext-secondary hover:text-qtext-primary">Pricing</a>
+      <a data-id="12" href="#ecosystem-m3n4" class="nav-link text-sm text-qtext-secondary hover:text-qtext-primary">Ecosystem</a>
+      <button data-id="13" id="launch-app-btn-o5p6" class="ml-2 px-5 py-2 rounded-full bg-gradient-to-r from-qviolet-500 to-qmagenta-500 text-white text-sm font-semibold glow-btn">Launch App</button>
+    </nav>
+    <button data-id="14" id="mobile-menu-btn-q7r8" class="md:hidden p-2 text-qtext-primary">
+      <i data-id="15" data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+  </div>
+</header>
+
+<!-- Mobile Menu -->
+<nav data-id="16" id="mobile-menu-s9t0" class="hidden fixed inset-0 z-[60] flex flex-col" style="background:rgba(10,10,26,0.97);backdrop-filter:blur(20px);">
+  <div data-id="17" class="flex items-center justify-between px-4 h-16">
+    <div data-id="18" class="flex items-center gap-2">
+      <div data-id="19" class="w-9 h-9 rounded-lg bg-gradient-to-br from-qviolet-500 to-qmagenta-500 flex items-center justify-center font-black text-white text-lg">Q</div>
+      <span data-id="20" class="text-xl font-bold text-qtext-primary">QRON</span>
+    </div>
+    <button data-id="21" id="mobile-menu-close-u1v2" class="p-2 text-qtext-primary">
+      <i data-id="22" data-lucide="x" class="w-6 h-6"></i>
+    </button>
+  </div>
+  <div data-id="23" class="flex flex-col items-center gap-6 mt-12">
+    <a data-id="24" href="#protocol-e5f6" class="mobile-nav-link text-lg text-qtext-secondary hover:text-qtext-primary">Protocol</a>
+    <a data-id="25" href="#token-g7h8" class="mobile-nav-link text-lg text-qtext-secondary hover:text-qtext-primary">Token</a>
+    <a data-id="26" href="#staking-i9j0" class="mobile-nav-link text-lg text-qtext-secondary hover:text-qtext-primary">Staking</a>
+    <a data-id="27" href="#pricing-k1l2" class="mobile-nav-link text-lg text-qtext-secondary hover:text-qtext-primary">Pricing</a>
+    <a data-id="28" href="#ecosystem-m3n4" class="mobile-nav-link text-lg text-qtext-secondary hover:text-qtext-primary">Ecosystem</a>
+    <button data-id="29" class="mt-4 px-8 py-3 rounded-full bg-gradient-to-r from-qviolet-500 to-qmagenta-500 text-white font-semibold glow-btn">Launch App</button>
+  </div>
+</nav>
+
+<main data-id="30">
+
+<!-- ===== SECTION 1: HERO ===== -->
+<section data-id="31" id="hero-w3x4" class="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+  <!-- Animated background shapes -->
+  <div data-id="32" class="float-shape w-96 h-96 bg-qviolet-500 top-[-10%] left-[-5%]" style="animation-delay:0s;"></div>
+  <div data-id="33" class="float-shape w-72 h-72 bg-qmagenta-500 top-[20%] right-[-5%]" style="animation-delay:3s;"></div>
+  <div data-id="34" class="float-shape w-80 h-80 bg-qcyan-500 bottom-[5%] left-[10%]" style="animation-delay:6s;"></div>
+  <div data-id="35" class="float-shape w-64 h-64 bg-qviolet-700 bottom-[-5%] right-[15%]" style="animation-delay:9s;"></div>
+  <canvas data-id="36" id="hero-particles-y5z6" class="particle-canvas"></canvas>
+
+  <div data-id="37" class="relative z-10 max-w-5xl mx-auto px-4 text-center">
+    <div data-id="38" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-qviolet-500/30 bg-qviolet-500/10 mb-8">
+      <span data-id="39" class="w-2 h-2 rounded-full bg-qviolet-400 animate-pulse"></span>
+      <span data-id="40" class="text-xs font-medium text-qviolet-300 tracking-wide uppercase">Live on Polygon</span>
+    </div>
+    <h1 data-id="41" id="hero-title-a1b1" class="text-4xl sm:text-5xl md:text-7xl font-black leading-tight mb-6">
+      <span data-id="42" class="gradient-text">The Experience Layer</span><br data-id="43" />
+      <span data-id="44" class="text-qtext-primary">of Trust</span>
+    </h1>
+    <p data-id="45" id="hero-sub-c1d1" class="text-base sm:text-lg md:text-xl text-qtext-secondary max-w-3xl mx-auto mb-10 leading-relaxed">
+      Where authentication meets artistry. <span data-id="46" class="text-qviolet-300 font-semibold">$QRON</span> powers the world's first revenue-backed verification protocol — bridging brands, consumers, and truth on-chain.
+    </p>
+    <div data-id="47" class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
+      <a data-id="48" href="#token-g7h8" id="cta-explore-e1f1" class="px-8 py-3.5 rounded-full bg-gradient-to-r from-qviolet-500 to-qviolet-600 text-white font-semibold glow-btn min-w-[180px]">Explore Token</a>
+      <a data-id="49" href="#" id="cta-whitepaper-g1h1" class="px-8 py-3.5 rounded-full border border-qviolet-400/40 text-qviolet-300 font-semibold hover:bg-qviolet-500/10 transition-all min-w-[180px]">View Whitepaper</a>
+    </div>
+    <!-- Stats Bar -->
+    <div data-id="50" id="stats-bar-i1j1" class="flex flex-wrap justify-center gap-4 md:gap-0 md:divide-x md:divide-qviolet-500/20">
+      <div data-id="51" class="px-6 py-3 text-center">
+        <div data-id="52" class="text-xl md:text-2xl font-bold text-qtext-primary tabular-nums">1B</div>
+        <div data-id="53" class="text-xs text-qtext-muted uppercase tracking-wider mt-1">Max Supply</div>
+      </div>
+      <div data-id="54" class="px-6 py-3 text-center">
+        <div data-id="55" class="text-xl md:text-2xl font-bold text-qcyan-400">Polygon</div>
+        <div data-id="56" class="text-xs text-qtext-muted uppercase tracking-wider mt-1">Network</div>
+      </div>
+      <div data-id="57" class="px-6 py-3 text-center">
+        <div data-id="58" class="text-xl md:text-2xl font-bold text-qmagenta-400">ERC-20</div>
+        <div data-id="59" class="text-xs text-qtext-muted uppercase tracking-wider mt-1">Standard</div>
+      </div>
+      <div data-id="60" class="px-6 py-3 text-center">
+        <div data-id="61" class="text-xl md:text-2xl font-bold text-qgold-400">Revenue</div>
+        <div data-id="62" class="text-xs text-qtext-muted uppercase tracking-wider mt-1">Backed</div>
+      </div>
+    </div>
+  </div>
+  <!-- Scroll indicator -->
+  <div data-id="63" class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+    <i data-id="64" data-lucide="chevron-down" class="w-6 h-6 text-qviolet-400/60"></i>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: QRONCODE STACK ===== -->
+<section data-id="65" id="protocol-e5f6" class="py-20 md:py-28 relative">
+  <div data-id="66" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="67" class="section-reveal text-center mb-16">
+      <span data-id="68" class="text-xs font-semibold tracking-[0.2em] uppercase text-qviolet-400 mb-3 block">The TruMark System</span>
+      <h2 data-id="69" id="trumark-title-k1l1" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">QronCode Stack</h2>
+      <p data-id="70" class="text-qtext-secondary max-w-2xl mx-auto">Four layers of technology, one seamless verification experience. Each layer builds on the last to deliver unbreakable provenance.</p>
+    </div>
+
+    <div data-id="71" class="section-reveal grid md:grid-cols-2 gap-12 items-center">
+      <!-- Layers -->
+      <div data-id="72" class="space-y-4">
+        <div data-id="73" class="layer-card glass-card p-5 cursor-pointer" data-layer="layer1">
+          <div data-id="74" class="flex items-center gap-4">
+            <div data-id="75" class="w-12 h-12 rounded-xl bg-gradient-to-br from-qviolet-500/30 to-qmagenta-500/20 flex items-center justify-center shrink-0">
+              <i data-id="76" data-lucide="qr-code" class="w-6 h-6 text-qviolet-400"></i>
+            </div>
+            <div data-id="77" class="flex-1">
+              <div data-id="78" class="flex items-center justify-between">
+                <h3 data-id="79" class="font-bold text-qtext-primary">Layer 1: Visual QR</h3>
+                <i data-id="80" data-lucide="chevron-down" class="w-4 h-4 text-qtext-muted layer-chevron transition-transform"></i>
+              </div>
+              <p data-id="81" class="text-sm text-qtext-secondary mt-1">Artistic QR generation with brand customization</p>
+            </div>
+          </div>
+          <div data-id="82" class="layer-expand mt-3">
+            <p data-id="83" class="text-sm text-qtext-secondary pl-16 pb-2">Each QronCode is a unique piece of generative art — combining brand colors, patterns, and gradients into a scannable visual identity. No two QronCodes are alike. Machine-readable, human-beautiful.</p>
+          </div>
+        </div>
+        <div data-id="84" class="layer-card glass-card p-5 cursor-pointer" data-layer="layer2">
+          <div data-id="85" class="flex items-center gap-4">
+            <div data-id="86" class="w-12 h-12 rounded-xl bg-gradient-to-br from-qcyan-500/30 to-qviolet-500/20 flex items-center justify-center shrink-0">
+              <i data-id="87" data-lucide="sparkles" class="w-6 h-6 text-qcyan-400"></i>
+            </div>
+            <div data-id="88" class="flex-1">
+              <div data-id="89" class="flex items-center justify-between">
+                <h3 data-id="90" class="font-bold text-qtext-primary">Layer 2: AI StoryMode</h3>
+                <i data-id="91" data-lucide="chevron-down" class="w-4 h-4 text-qtext-muted layer-chevron transition-transform"></i>
+              </div>
+              <p data-id="92" class="text-sm text-qtext-secondary mt-1">AI-powered narrative attached to each scan</p>
+            </div>
+          </div>
+          <div data-id="93" class="layer-expand mt-3">
+            <p data-id="94" class="text-sm text-qtext-secondary pl-16 pb-2">Every scan triggers a rich, AI-generated story about the product's journey — from origin to shelf. StoryMode transforms cold verification data into compelling brand narratives that consumers actually want to read.</p>
+          </div>
+        </div>
+        <div data-id="95" class="layer-card glass-card p-5 cursor-pointer" data-layer="layer3">
+          <div data-id="96" class="flex items-center gap-4">
+            <div data-id="97" class="w-12 h-12 rounded-xl bg-gradient-to-br from-qmagenta-500/30 to-qgold-500/20 flex items-center justify-center shrink-0">
+              <i data-id="98" data-lucide="blocks" class="w-6 h-6 text-qmagenta-400"></i>
+            </div>
+            <div data-id="99" class="flex-1">
+              <div data-id="100" class="flex items-center justify-between">
+                <h3 data-id="101" class="font-bold text-qtext-primary">Layer 3: Blockchain Anchor</h3>
+                <i data-id="102" data-lucide="chevron-down" class="w-4 h-4 text-qtext-muted layer-chevron transition-transform"></i>
+              </div>
+              <p data-id="103" class="text-sm text-qtext-secondary mt-1">Immutable provenance record on Polygon</p>
+            </div>
+          </div>
+          <div data-id="104" class="layer-expand mt-3">
+            <p data-id="105" class="text-sm text-qtext-secondary pl-16 pb-2">Every QronCode seal is anchored to the Polygon blockchain — creating an immutable, timestamped provenance record. No central authority can alter or revoke a seal once minted. Truth, permanently recorded.</p>
+          </div>
+        </div>
+        <div data-id="106" class="layer-card glass-card p-5 cursor-pointer" data-layer="layer4">
+          <div data-id="107" class="flex items-center gap-4">
+            <div data-id="108" class="w-12 h-12 rounded-xl bg-gradient-to-br from-qgold-500/30 to-qcyan-500/20 flex items-center justify-center shrink-0">
+              <i data-id="109" data-lucide="workflow" class="w-6 h-6 text-qgold-400"></i>
+            </div>
+            <div data-id="110" class="flex-1">
+              <div data-id="111" class="flex items-center justify-between">
+                <h3 data-id="112" class="font-bold text-qtext-primary">Layer 4: AutoFlow</h3>
+                <i data-id="113" data-lucide="chevron-down" class="w-4 h-4 text-qtext-muted layer-chevron transition-transform"></i>
+              </div>
+              <p data-id="114" class="text-sm text-qtext-secondary mt-1">Make.com automation for minting, verification, alerts</p>
+            </div>
+          </div>
+          <div data-id="115" class="layer-expand mt-3">
+            <p data-id="116" class="text-sm text-qtext-secondary pl-16 pb-2">AutoFlow connects minting, scanning, and alerting through intelligent automation. When a product is sealed, verified, or flagged — the protocol responds instantly. Zero manual intervention. Full pipeline automation.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Artistic QR Demo -->
+      <div data-id="117" class="flex justify-center">
+        <div data-id="118" class="relative">
+          <div data-id="119" class="absolute inset-0 bg-gradient-to-br from-qviolet-500/20 to-qmagenta-500/20 rounded-3xl blur-3xl"></div>
+          <div data-id="120" id="qr-demo-m1n1" class="relative glass-card p-8 rounded-3xl">
+            <div data-id="121" class="qr-art-pattern w-56 h-56 mx-auto" id="qr-grid-o1p1"></div>
+            <p data-id="122" class="text-center text-sm text-qtext-muted mt-5">QronCode Demo — Generative Art QR</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: FIVE PILLARS ===== -->
+<section data-id="123" id="token-g7h8" class="py-20 md:py-28 relative">
+  <div data-id="124" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="125" class="section-reveal text-center mb-16">
+      <span data-id="126" class="text-xs font-semibold tracking-[0.2em] uppercase text-qmagenta-400 mb-3 block">Tokenomics</span>
+      <h2 data-id="127" id="pillars-title-q1r1" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Five Pillars</h2>
+      <p data-id="128" class="text-qtext-secondary max-w-xl mx-auto">A token designed to last. Built on revenue, not hype.</p>
+    </div>
+    <div data-id="129" class="section-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+      <!-- Pillar 1 -->
+      <div data-id="130" class="glass-card p-6 relative overflow-hidden group" style="border-image:linear-gradient(135deg,#8b5cf6,#d946ef) 1;border-width:1px;border-style:solid;border-radius:16px;">
+        <div data-id="131" class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-qviolet-500/10 to-transparent rounded-bl-full"></div>
+        <div data-id="132" class="w-11 h-11 rounded-xl bg-qviolet-500/20 flex items-center justify-center mb-4">
+          <i data-id="133" data-lucide="link" class="w-5 h-5 text-qviolet-400"></i>
+        </div>
+        <h3 data-id="134" class="font-bold text-sm text-qtext-primary mb-2">On-Chain Fee Coverage</h3>
+        <p data-id="135" class="text-xs text-qtext-secondary leading-relaxed">$QRON pays protocol fees for every seal, scan, and verification. Brands never touch gas.</p>
+      </div>
+      <!-- Pillar 2 -->
+      <div data-id="136" class="glass-card p-6 relative overflow-hidden group" style="border-image:linear-gradient(135deg,#d946ef,#06b6d4) 1;border-width:1px;border-style:solid;border-radius:16px;">
+        <div data-id="137" class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-qmagenta-500/10 to-transparent rounded-bl-full"></div>
+        <div data-id="138" class="w-11 h-11 rounded-xl bg-qmagenta-500/20 flex items-center justify-center mb-4">
+          <i data-id="139" data-lucide="bar-chart-3" class="w-5 h-5 text-qmagenta-400"></i>
+        </div>
+        <h3 data-id="140" class="font-bold text-sm text-qtext-primary mb-2">Revenue-Budgeted Emissions</h3>
+        <p data-id="141" class="text-xs text-qtext-secondary leading-relaxed">Token rewards are funded by real protocol revenue, not inflation. No printing. No dilution.</p>
+      </div>
+      <!-- Pillar 3 -->
+      <div data-id="142" class="glass-card p-6 relative overflow-hidden group" style="border-image:linear-gradient(135deg,#06b6d4,#f59e0b) 1;border-width:1px;border-style:solid;border-radius:16px;">
+        <div data-id="143" class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-qcyan-500/10 to-transparent rounded-bl-full"></div>
+        <div data-id="144" class="w-11 h-11 rounded-xl bg-qcyan-500/20 flex items-center justify-center mb-4">
+          <i data-id="145" data-lucide="credit-card" class="w-5 h-5 text-qcyan-400"></i>
+        </div>
+        <h3 data-id="146" class="font-bold text-sm text-qtext-primary mb-2">Fiat-Native Brand Experience</h3>
+        <p data-id="147" class="text-xs text-qtext-secondary leading-relaxed">Brands pay in USD. The FiatSwapBridge converts to $QRON behind the scenes. Zero crypto friction.</p>
+      </div>
+      <!-- Pillar 4 -->
+      <div data-id="148" class="glass-card p-6 relative overflow-hidden group" style="border-image:linear-gradient(135deg,#f59e0b,#8b5cf6) 1;border-width:1px;border-style:solid;border-radius:16px;">
+        <div data-id="149" class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-qgold-500/10 to-transparent rounded-bl-full"></div>
+        <div data-id="150" class="w-11 h-11 rounded-xl bg-qgold-500/20 flex items-center justify-center mb-4">
+          <i data-id="151" data-lucide="zap" class="w-5 h-5 text-qgold-400"></i>
+        </div>
+        <h3 data-id="152" class="font-bold text-sm text-qtext-primary mb-2">Power-User Layer</h3>
+        <p data-id="153" class="text-xs text-qtext-secondary leading-relaxed">Stakers, builders, and partners earn governance weight, fee discounts, and priority access.</p>
+      </div>
+      <!-- Pillar 5 -->
+      <div data-id="154" class="glass-card p-6 relative overflow-hidden group" style="border-image:linear-gradient(135deg,#8b5cf6,#06b6d4) 1;border-width:1px;border-style:solid;border-radius:16px;">
+        <div data-id="155" class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-qviolet-500/10 to-transparent rounded-bl-full"></div>
+        <div data-id="156" class="w-11 h-11 rounded-xl bg-qviolet-500/20 flex items-center justify-center mb-4">
+          <i data-id="157" data-lucide="shield-check" class="w-5 h-5 text-qviolet-400"></i>
+        </div>
+        <h3 data-id="158" class="font-bold text-sm text-qtext-primary mb-2">Clean Protocol/Token Separation</h3>
+        <p data-id="159" class="text-xs text-qtext-secondary leading-relaxed">Protocol logic and token logic are modular. Upgradeable. Auditable. No entanglement.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: SMART CONTRACT ARCHITECTURE ===== -->
+<section data-id="160" id="contracts-s1t1" class="py-20 md:py-28 relative" style="background:linear-gradient(180deg,rgba(20,20,40,0.5) 0%,rgba(10,10,26,1) 100%);">
+  <div data-id="161" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="162" class="section-reveal text-center mb-16">
+      <span data-id="163" class="text-xs font-semibold tracking-[0.2em] uppercase text-qcyan-400 mb-3 block">Architecture</span>
+      <h2 data-id="164" id="contracts-title-u1v1" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Built on Solidity. Secured by Design.</h2>
+      <p data-id="165" class="text-qtext-secondary max-w-2xl mx-auto">Six modular smart contracts power the QRON protocol. Each one auditable, upgradeable, and purpose-built.</p>
+    </div>
+
+    <div data-id="166" class="section-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div data-id="167" class="contract-node glass-card p-6" data-contract="qrontoken">
+        <div data-id="168" class="flex items-center gap-3 mb-3">
+          <div data-id="169" class="w-10 h-10 rounded-lg bg-qviolet-500/20 flex items-center justify-center"><i data-id="170" data-lucide="coins" class="w-5 h-5 text-qviolet-400"></i></div>
+          <code data-id="171" class="text-sm font-mono text-qviolet-300">QRONToken.sol</code>
+        </div>
+        <p data-id="172" class="text-sm text-qtext-secondary">ERC-20 core with burn mechanics and governance hooks</p>
+        <div data-id="173" class="contract-detail mt-3" id="detail-qrontoken">
+          <p data-id="174" class="text-xs text-qtext-muted leading-relaxed">The foundational token contract implementing ERC-20 with built-in burn-on-transfer mechanics. Includes governance weight calculation hooks, allowance management, and compatibility with staking vault deposits.</p>
+        </div>
+      </div>
+      <div data-id="175" class="contract-node glass-card p-6" data-contract="feerouter">
+        <div data-id="176" class="flex items-center gap-3 mb-3">
+          <div data-id="177" class="w-10 h-10 rounded-lg bg-qmagenta-500/20 flex items-center justify-center"><i data-id="178" data-lucide="split" class="w-5 h-5 text-qmagenta-400"></i></div>
+          <code data-id="179" class="text-sm font-mono text-qmagenta-300">ProtocolFeeRouter.sol</code>
+        </div>
+        <p data-id="180" class="text-sm text-qtext-secondary">Routes fees: 20% Burn, 30% Security, 30% AI Compute, 20% Treasury</p>
+        <div data-id="181" class="contract-detail mt-3" id="detail-feerouter">
+          <p data-id="182" class="text-xs text-qtext-muted leading-relaxed">Deterministic fee routing contract that splits every protocol fee into four buckets. Immutable allocation ratios enforced on-chain. Includes emergency pause and admin override for security events.</p>
+        </div>
+      </div>
+      <div data-id="183" class="contract-node glass-card p-6" data-contract="rewards">
+        <div data-id="184" class="flex items-center gap-3 mb-3">
+          <div data-id="185" class="w-10 h-10 rounded-lg bg-qcyan-500/20 flex items-center justify-center"><i data-id="186" data-lucide="calendar-clock" class="w-5 h-5 text-qcyan-400"></i></div>
+          <code data-id="187" class="text-sm font-mono text-qcyan-300">RewardsBudgetContract.sol</code>
+        </div>
+        <p data-id="188" class="text-sm text-qtext-secondary">Revenue-funded emission scheduler with epoch controls</p>
+        <div data-id="189" class="contract-detail mt-3" id="detail-rewards">
+          <p data-id="190" class="text-xs text-qtext-muted leading-relaxed">Emissions are never inflationary — they're budgeted from protocol revenue each epoch. The scheduler calculates reward pools based on real income, distributing proportionally across staking tiers.</p>
+        </div>
+      </div>
+      <div data-id="191" class="contract-node glass-card p-6" data-contract="fiatswap">
+        <div data-id="192" class="flex items-center gap-3 mb-3">
+          <div data-id="193" class="w-10 h-10 rounded-lg bg-qgold-500/20 flex items-center justify-center"><i data-id="194" data-lucide="arrow-left-right" class="w-5 h-5 text-qgold-400"></i></div>
+          <code data-id="195" class="text-sm font-mono text-qgold-300">FiatSwapBridge.sol</code>
+        </div>
+        <p data-id="196" class="text-sm text-qtext-secondary">USD → $QRON conversion layer for brand onboarding</p>
+        <div data-id="197" class="contract-detail mt-3" id="detail-fiatswap">
+          <p data-id="198" class="text-xs text-qtext-muted leading-relaxed">The bridge contract that abstracts crypto complexity from brand clients. USD payments trigger automated market buys of $QRON, routing tokens directly to fee coverage. Oracle-priced, slippage-protected.</p>
+        </div>
+      </div>
+      <div data-id="199" class="contract-node glass-card p-6" data-contract="staking">
+        <div data-id="200" class="flex items-center gap-3 mb-3">
+          <div data-id="201" class="w-10 h-10 rounded-lg bg-qviolet-500/20 flex items-center justify-center"><i data-id="202" data-lucide="lock" class="w-5 h-5 text-qviolet-400"></i></div>
+          <code data-id="203" class="text-sm font-mono text-qviolet-300">StakingVault.sol</code>
+        </div>
+        <p data-id="204" class="text-sm text-qtext-secondary">Tiered staking with lockup periods and multiplier rewards</p>
+        <div data-id="205" class="contract-detail mt-3" id="detail-staking">
+          <p data-id="206" class="text-xs text-qtext-muted leading-relaxed">Four-tier staking vault with time-locked deposits. Longer lockups earn higher multipliers. Integrates with governance for voting weight calculation. Auto-compounding optional per user preference.</p>
+        </div>
+      </div>
+      <div data-id="207" class="contract-node glass-card p-6" data-contract="campaign">
+        <div data-id="208" class="flex items-center gap-3 mb-3">
+          <div data-id="209" class="w-10 h-10 rounded-lg bg-qmagenta-500/20 flex items-center justify-center"><i data-id="210" data-lucide="megaphone" class="w-5 h-5 text-qmagenta-400"></i></div>
+          <code data-id="211" class="text-sm font-mono text-qmagenta-300">CampaignPool.sol</code>
+        </div>
+        <p data-id="212" class="text-sm text-qtext-secondary">Brand campaign funding and reward distribution engine</p>
+        <div data-id="213" class="contract-detail mt-3" id="detail-campaign">
+          <p data-id="214" class="text-xs text-qtext-muted leading-relaxed">Brands fund verification campaigns that reward consumers for scanning and engaging with QronCodes. Supports time-bounded campaigns, reward caps, and multi-brand co-funding arrangements.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: FEE ALLOCATION ===== -->
+<section data-id="215" id="fee-alloc-w1x1" class="py-20 md:py-28 relative">
+  <div data-id="216" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="217" class="section-reveal text-center mb-16">
+      <span data-id="218" class="text-xs font-semibold tracking-[0.2em] uppercase text-qgold-400 mb-3 block">Fee Distribution</span>
+      <h2 data-id="219" id="fees-title-y1z1" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Every Fee, Purposefully Routed</h2>
+      <p data-id="220" class="text-qtext-secondary max-w-2xl mx-auto">Protocol fees are deterministically split across four critical functions. No discretionary spending. Full transparency.</p>
+    </div>
+
+    <div data-id="221" class="section-reveal grid md:grid-cols-2 gap-12 items-center">
+      <!-- Chart -->
+      <div data-id="222" class="flex justify-center">
+        <div data-id="223" class="relative w-full max-w-sm">
+          <div data-id="224" class="relative h-72 md:h-80">
+            <canvas data-id="225" id="fee-chart-a2b2"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Breakdown -->
+      <div data-id="226" class="space-y-5">
+        <div data-id="227" class="flex items-start gap-4">
+          <div data-id="228" class="w-4 h-4 rounded-full bg-red-500 mt-1 shrink-0"></div>
+          <div data-id="229">
+            <h4 data-id="230" class="font-bold text-qtext-primary">Burn — 20%</h4>
+            <p data-id="231" class="text-sm text-qtext-secondary">Deflationary pressure. Every transaction reduces supply permanently.</p>
+          </div>
+        </div>
+        <div data-id="232" class="flex items-start gap-4">
+          <div data-id="233" class="w-4 h-4 rounded-full bg-blue-500 mt-1 shrink-0"></div>
+          <div data-id="234">
+            <h4 data-id="235" class="font-bold text-qtext-primary">Security Reserve — 30%</h4>
+            <p data-id="236" class="text-sm text-qtext-secondary">Bug bounties, audits, insurance fund. Protecting protocol integrity.</p>
+          </div>
+        </div>
+        <div data-id="237" class="flex items-start gap-4">
+          <div data-id="238" class="w-4 h-4 rounded-full bg-purple-500 mt-1 shrink-0"></div>
+          <div data-id="239">
+            <h4 data-id="240" class="font-bold text-qtext-primary">AI Compute — 30%</h4>
+            <p data-id="241" class="text-sm text-qtext-secondary">Powers verification AI, image analysis, and StoryMode generation.</p>
+          </div>
+        </div>
+        <div data-id="242" class="flex items-start gap-4">
+          <div data-id="243" class="w-4 h-4 rounded-full bg-yellow-500 mt-1 shrink-0"></div>
+          <div data-id="244">
+            <h4 data-id="245" class="font-bold text-qtext-primary">Treasury — 20%</h4>
+            <p data-id="246" class="text-sm text-qtext-secondary">Protocol development, partnerships, and ecosystem growth.</p>
+          </div>
+        </div>
+        <!-- Counter -->
+        <div data-id="247" class="glass-card p-5 mt-6">
+          <p data-id="248" class="text-xs text-qtext-muted uppercase tracking-wider mb-1">Total Fees Processed</p>
+          <p data-id="249" id="fee-counter-c2d2" class="text-3xl font-bold gradient-text tabular-nums font-mono">$0</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: STAKING TIERS ===== -->
+<section data-id="250" id="staking-i9j0" class="py-20 md:py-28 relative" style="background:linear-gradient(180deg,rgba(10,10,26,1) 0%,rgba(20,20,40,0.5) 50%,rgba(10,10,26,1) 100%);">
+  <div data-id="251" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="252" class="section-reveal text-center mb-16">
+      <span data-id="253" class="text-xs font-semibold tracking-[0.2em] uppercase text-qgold-400 mb-3 block">Staking</span>
+      <h2 data-id="254" id="staking-title-e2f2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Stake $QRON. Unlock Power.</h2>
+      <p data-id="255" class="text-qtext-secondary max-w-xl mx-auto">Four tiers of commitment. Each unlocking deeper protocol access and higher rewards.</p>
+    </div>
+
+    <div data-id="256" class="section-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <!-- Bronze -->
+      <div data-id="257" class="tier-card rounded-2xl overflow-hidden" style="background:linear-gradient(135deg,rgba(139,105,20,0.15),rgba(20,20,40,0.9));">
+        <div data-id="258" class="h-1.5 metallic-bronze"></div>
+        <div data-id="259" class="p-6">
+          <div data-id="260" class="flex items-center gap-2 mb-4">
+            <i data-id="261" data-lucide="award" class="w-5 h-5" style="color:#CD853F;"></i>
+            <h3 data-id="262" class="font-bold text-lg" style="color:#CD853F;">Bronze</h3>
+          </div>
+          <div data-id="263" class="mb-5">
+            <span data-id="264" class="text-3xl font-black text-qtext-primary">100</span>
+            <span data-id="265" class="text-sm text-qtext-muted ml-1">$QRON</span>
+          </div>
+          <div data-id="266" class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-5" style="background:rgba(205,133,63,0.15);color:#CD853F;">5% APY</div>
+          <ul data-id="267" class="space-y-2 mb-6">
+            <li data-id="268" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="269" data-lucide="check" class="w-4 h-4 text-green-400"></i> Basic access</li>
+            <li data-id="270" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="271" data-lucide="check" class="w-4 h-4 text-green-400"></i> Standard support</li>
+            <li data-id="272" class="flex items-center gap-2 text-sm text-qtext-muted"><i data-id="273" data-lucide="minus" class="w-4 h-4 text-qtext-muted"></i> No governance</li>
+          </ul>
+          <button data-id="274" class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all" style="background:rgba(205,133,63,0.2);color:#CD853F;border:1px solid rgba(205,133,63,0.3);">Stake Now</button>
+        </div>
+      </div>
+      <!-- Silver -->
+      <div data-id="275" class="tier-card rounded-2xl overflow-hidden" style="background:linear-gradient(135deg,rgba(192,192,192,0.1),rgba(20,20,40,0.9));">
+        <div data-id="276" class="h-1.5 metallic-silver"></div>
+        <div data-id="277" class="p-6">
+          <div data-id="278" class="flex items-center gap-2 mb-4">
+            <i data-id="279" data-lucide="award" class="w-5 h-5" style="color:#C0C0C0;"></i>
+            <h3 data-id="280" class="font-bold text-lg" style="color:#C0C0C0;">Silver</h3>
+          </div>
+          <div data-id="281" class="mb-5">
+            <span data-id="282" class="text-3xl font-black text-qtext-primary">1,000</span>
+            <span data-id="283" class="text-sm text-qtext-muted ml-1">$QRON</span>
+          </div>
+          <div data-id="284" class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-5" style="background:rgba(192,192,192,0.15);color:#C0C0C0;">15% APY</div>
+          <ul data-id="285" class="space-y-2 mb-6">
+            <li data-id="286" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="287" data-lucide="check" class="w-4 h-4 text-green-400"></i> Priority verification</li>
+            <li data-id="288" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="289" data-lucide="check" class="w-4 h-4 text-green-400"></i> Fee discounts</li>
+            <li data-id="290" class="flex items-center gap-2 text-sm text-qtext-muted"><i data-id="291" data-lucide="minus" class="w-4 h-4 text-qtext-muted"></i> No governance</li>
+          </ul>
+          <button data-id="292" class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all" style="background:rgba(192,192,192,0.2);color:#C0C0C0;border:1px solid rgba(192,192,192,0.3);">Stake Now</button>
+        </div>
+      </div>
+      <!-- Gold -->
+      <div data-id="293" class="tier-card rounded-2xl overflow-hidden" style="background:linear-gradient(135deg,rgba(255,215,0,0.1),rgba(20,20,40,0.9));">
+        <div data-id="294" class="h-1.5 metallic-gold"></div>
+        <div data-id="295" class="p-6">
+          <div data-id="296" class="flex items-center gap-2 mb-4">
+            <i data-id="297" data-lucide="award" class="w-5 h-5" style="color:#FFD700;"></i>
+            <h3 data-id="298" class="font-bold text-lg" style="color:#FFD700;">Gold</h3>
+          </div>
+          <div data-id="299" class="mb-5">
+            <span data-id="300" class="text-3xl font-black text-qtext-primary">10,000</span>
+            <span data-id="301" class="text-sm text-qtext-muted ml-1">$QRON</span>
+          </div>
+          <div data-id="302" class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-5" style="background:rgba(255,215,0,0.15);color:#FFD700;">25% APY</div>
+          <ul data-id="303" class="space-y-2 mb-6">
+            <li data-id="304" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="305" data-lucide="check" class="w-4 h-4 text-green-400"></i> Governance voting</li>
+            <li data-id="306" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="307" data-lucide="check" class="w-4 h-4 text-green-400"></i> Premium API</li>
+            <li data-id="308" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="309" data-lucide="check" class="w-4 h-4 text-green-400"></i> Fee discounts</li>
+          </ul>
+          <button data-id="310" class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all" style="background:rgba(255,215,0,0.2);color:#FFD700;border:1px solid rgba(255,215,0,0.3);">Stake Now</button>
+        </div>
+      </div>
+      <!-- Platinum -->
+      <div data-id="311" class="tier-card rounded-2xl overflow-hidden relative" style="background:linear-gradient(135deg,rgba(123,104,238,0.15),rgba(20,20,40,0.9));">
+        <div data-id="312" class="absolute top-4 right-4 px-2 py-0.5 rounded text-[10px] font-bold bg-qviolet-500/30 text-qviolet-300 uppercase tracking-wider">Elite</div>
+        <div data-id="313" class="h-1.5 metallic-platinum"></div>
+        <div data-id="314" class="p-6">
+          <div data-id="315" class="flex items-center gap-2 mb-4">
+            <i data-id="316" data-lucide="gem" class="w-5 h-5" style="color:#E6E6FA;"></i>
+            <h3 data-id="317" class="font-bold text-lg" style="color:#E6E6FA;">Platinum</h3>
+          </div>
+          <div data-id="318" class="mb-5">
+            <span data-id="319" class="text-3xl font-black text-qtext-primary">50,000</span>
+            <span data-id="320" class="text-sm text-qtext-muted ml-1">$QRON</span>
+          </div>
+          <div data-id="321" class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-5" style="background:rgba(230,230,250,0.15);color:#E6E6FA;">50% APY</div>
+          <ul data-id="322" class="space-y-2 mb-6">
+            <li data-id="323" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="324" data-lucide="check" class="w-4 h-4 text-green-400"></i> Full governance</li>
+            <li data-id="325" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="326" data-lucide="check" class="w-4 h-4 text-green-400"></i> White-glove support</li>
+            <li data-id="327" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="328" data-lucide="check" class="w-4 h-4 text-green-400"></i> Custom integrations</li>
+          </ul>
+          <button data-id="329" class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all glow-btn" style="background:linear-gradient(135deg,#7c3aed,#d946ef);color:white;">Stake Now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div data-id="330" class="section-reveal mt-14 overflow-x-auto">
+      <table data-id="331" class="w-full text-sm border-collapse" style="min-width:600px;">
+        <thead data-id="332">
+          <tr data-id="333" class="border-b border-qviolet-500/20">
+            <th data-id="334" class="text-left py-3 px-4 text-qtext-muted font-medium">Feature</th>
+            <th data-id="335" class="py-3 px-4 text-center font-medium" style="color:#CD853F;">Bronze</th>
+            <th data-id="336" class="py-3 px-4 text-center font-medium" style="color:#C0C0C0;">Silver</th>
+            <th data-id="337" class="py-3 px-4 text-center font-medium" style="color:#FFD700;">Gold</th>
+            <th data-id="338" class="py-3 px-4 text-center font-medium" style="color:#E6E6FA;">Platinum</th>
+          </tr>
+        </thead>
+        <tbody data-id="339" class="text-qtext-secondary">
+          <tr data-id="340" class="border-b border-white/5"><td data-id="341" class="py-2.5 px-4">APY Rewards</td><td data-id="342" class="text-center">5%</td><td data-id="343" class="text-center">15%</td><td data-id="344" class="text-center">25%</td><td data-id="345" class="text-center">50%</td></tr>
+          <tr data-id="346" class="border-b border-white/5"><td data-id="347" class="py-2.5 px-4">Priority Verification</td><td data-id="348" class="text-center text-qtext-muted">—</td><td data-id="349" class="text-center text-green-400"><i data-id="350" data-lucide="check" class="w-4 h-4 inline"></i></td><td data-id="351" class="text-center text-green-400"><i data-id="352" data-lucide="check" class="w-4 h-4 inline"></i></td><td data-id="353" class="text-center text-green-400"><i data-id="354" data-lucide="check" class="w-4 h-4 inline"></i></td></tr>
+          <tr data-id="355" class="border-b border-white/5"><td data-id="356" class="py-2.5 px-4">Fee Discounts</td><td data-id="357" class="text-center text-qtext-muted">—</td><td data-id="358" class="text-center">10%</td><td data-id="359" class="text-center">25%</td><td data-id="360" class="text-center">50%</td></tr>
+          <tr data-id="361" class="border-b border-white/5"><td data-id="362" class="py-2.5 px-4">Governance Voting</td><td data-id="363" class="text-center text-qtext-muted">—</td><td data-id="364" class="text-center text-qtext-muted">—</td><td data-id="365" class="text-center text-green-400"><i data-id="366" data-lucide="check" class="w-4 h-4 inline"></i></td><td data-id="367" class="text-center text-green-400"><i data-id="368" data-lucide="check" class="w-4 h-4 inline"></i></td></tr>
+          <tr data-id="369" class="border-b border-white/5"><td data-id="370" class="py-2.5 px-4">Premium API Access</td><td data-id="371" class="text-center text-qtext-muted">—</td><td data-id="372" class="text-center text-qtext-muted">—</td><td data-id="373" class="text-center text-green-400"><i data-id="374" data-lucide="check" class="w-4 h-4 inline"></i></td><td data-id="375" class="text-center text-green-400"><i data-id="376" data-lucide="check" class="w-4 h-4 inline"></i></td></tr>
+          <tr data-id="377"><td data-id="378" class="py-2.5 px-4">Custom Integrations</td><td data-id="379" class="text-center text-qtext-muted">—</td><td data-id="380" class="text-center text-qtext-muted">—</td><td data-id="381" class="text-center text-qtext-muted">—</td><td data-id="382" class="text-center text-green-400"><i data-id="383" data-lucide="check" class="w-4 h-4 inline"></i></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 7: PRICING ===== -->
+<section data-id="384" id="pricing-k1l2" class="py-20 md:py-28 relative">
+  <div data-id="385" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="386" class="section-reveal text-center mb-16">
+      <span data-id="387" class="text-xs font-semibold tracking-[0.2em] uppercase text-qcyan-400 mb-3 block">For Brands</span>
+      <h2 data-id="388" id="pricing-title-g2h2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Authentication for Every Scale</h2>
+      <p data-id="389" class="text-qtext-secondary max-w-xl mx-auto">All plans include fiat billing. No crypto required for brands.</p>
+    </div>
+
+    <div data-id="390" class="section-reveal grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+      <!-- Starter -->
+      <div data-id="391" class="glass-card p-7 rounded-2xl flex flex-col">
+        <h3 data-id="392" class="text-lg font-bold text-qtext-primary mb-1">Starter</h3>
+        <p data-id="393" class="text-qtext-muted text-xs mb-5">For emerging brands</p>
+        <div data-id="394" class="mb-6">
+          <span data-id="395" class="text-4xl font-black text-qtext-primary">$149</span>
+          <span data-id="396" class="text-sm text-qtext-muted">/mo</span>
+        </div>
+        <ul data-id="397" class="space-y-3 mb-8 flex-1">
+          <li data-id="398" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="399" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> 1,000 QronCode seals/mo</li>
+          <li data-id="400" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="401" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Basic dashboard</li>
+          <li data-id="402" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="403" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Email support</li>
+          <li data-id="404" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="405" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Standard API</li>
+        </ul>
+        <button data-id="406" class="w-full py-3 rounded-xl text-sm font-semibold border border-qviolet-500/30 text-qviolet-300 hover:bg-qviolet-500/10 transition-all">Get Started</button>
+      </div>
+      <!-- Growth -->
+      <div data-id="407" class="glass-card p-7 rounded-2xl flex flex-col relative overflow-hidden" style="border:2px solid rgba(139,92,246,0.5);box-shadow:0 0 40px rgba(139,92,246,0.15);">
+        <div data-id="408" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-qviolet-500 to-qmagenta-500"></div>
+        <div data-id="409" class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-qviolet-500 text-white text-[10px] font-bold uppercase tracking-wider">Most Popular</div>
+        <h3 data-id="410" class="text-lg font-bold text-qtext-primary mb-1">Growth</h3>
+        <p data-id="411" class="text-qtext-muted text-xs mb-5">For scaling businesses</p>
+        <div data-id="412" class="mb-6">
+          <span data-id="413" class="text-4xl font-black text-qtext-primary">$499</span>
+          <span data-id="414" class="text-sm text-qtext-muted">/mo</span>
+        </div>
+        <ul data-id="415" class="space-y-3 mb-8 flex-1">
+          <li data-id="416" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="417" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> 10,000 QronCode seals/mo</li>
+          <li data-id="418" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="419" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Advanced analytics</li>
+          <li data-id="420" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="421" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Priority support</li>
+          <li data-id="422" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="423" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Webhook integrations</li>
+        </ul>
+        <button data-id="424" class="w-full py-3 rounded-xl text-sm font-semibold text-white glow-btn transition-all" style="background:linear-gradient(135deg,#7c3aed,#8b5cf6);">Get Started</button>
+      </div>
+      <!-- Enterprise -->
+      <div data-id="425" class="glass-card p-7 rounded-2xl flex flex-col">
+        <h3 data-id="426" class="text-lg font-bold text-qtext-primary mb-1">Enterprise</h3>
+        <p data-id="427" class="text-qtext-muted text-xs mb-5">For global operations</p>
+        <div data-id="428" class="mb-6">
+          <span data-id="429" class="text-4xl font-black text-qtext-primary">$1,499</span>
+          <span data-id="430" class="text-sm text-qtext-muted">/mo</span>
+        </div>
+        <ul data-id="431" class="space-y-3 mb-8 flex-1">
+          <li data-id="432" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="433" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Unlimited seals</li>
+          <li data-id="434" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="435" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Dedicated account manager</li>
+          <li data-id="436" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="437" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> Custom integrations</li>
+          <li data-id="438" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="439" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> SLA guarantee</li>
+          <li data-id="440" class="flex items-center gap-2 text-sm text-qtext-secondary"><i data-id="441" data-lucide="check" class="w-4 h-4 text-qviolet-400"></i> White-label options</li>
+        </ul>
+        <button data-id="442" class="w-full py-3 rounded-xl text-sm font-semibold border border-qviolet-500/30 text-qviolet-300 hover:bg-qviolet-500/10 transition-all">Contact Sales</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 8: ECOSYSTEM ===== -->
+<section data-id="443" id="ecosystem-m3n4" class="py-20 md:py-28 relative" style="background:linear-gradient(180deg,rgba(10,10,26,1) 0%,rgba(20,20,40,0.4) 50%,rgba(10,10,26,1) 100%);">
+  <div data-id="444" class="max-w-6xl mx-auto px-4 md:px-6">
+    <div data-id="445" class="section-reveal text-center mb-16">
+      <span data-id="446" class="text-xs font-semibold tracking-[0.2em] uppercase text-qviolet-400 mb-3 block">Ecosystem</span>
+      <h2 data-id="447" id="eco-title-i2j2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Powered by $QRON</h2>
+      <p data-id="448" class="text-qtext-secondary max-w-2xl mx-auto">$QRON is the lifeblood of the AuthiChain ecosystem — flowing between specialized verification chains.</p>
+    </div>
+
+    <div data-id="449" class="section-reveal relative">
+      <!-- Center Hub -->
+      <div data-id="450" class="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16">
+        <!-- StrainChain -->
+        <div data-id="451" class="ecosystem-node glass-card p-6 rounded-2xl text-center max-w-xs w-full" style="border:1px solid rgba(34,197,94,0.3);">
+          <div data-id="452" class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background:rgba(34,197,94,0.15);">
+            <i data-id="453" data-lucide="leaf" class="w-7 h-7 text-green-400"></i>
+          </div>
+          <h3 data-id="454" class="font-bold text-green-400 mb-1">StrainChain.io</h3>
+          <p data-id="455" class="text-xs text-qtext-secondary">Cannabis provenance &amp; compliance verification for Michigan and beyond</p>
+        </div>
+
+        <!-- QRON Center -->
+        <div data-id="456" class="relative">
+          <div data-id="457" class="absolute inset-0 bg-gradient-to-br from-qviolet-500/20 to-qmagenta-500/20 rounded-full blur-3xl"></div>
+          <div data-id="458" class="relative w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center" style="background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(217,70,239,0.3));border:2px solid rgba(139,92,246,0.5);">
+            <div data-id="459" class="text-center">
+              <div data-id="460" class="text-3xl md:text-4xl font-black gradient-text">$QRON</div>
+              <div data-id="461" class="text-[10px] text-qtext-muted uppercase tracking-widest mt-1">Core Token</div>
+            </div>
+          </div>
+          <!-- Connecting lines (hidden on mobile, visible on lg) -->
+          <div data-id="462" class="hidden lg:block absolute top-1/2 -left-16 w-16 h-0.5 -translate-y-1/2" style="background:linear-gradient(90deg,rgba(34,197,94,0.5),rgba(139,92,246,0.5));"></div>
+          <div data-id="463" class="hidden lg:block absolute top-1/2 -right-16 w-16 h-0.5 -translate-y-1/2" style="background:linear-gradient(90deg,rgba(139,92,246,0.5),rgba(239,68,68,0.3));"></div>
+        </div>
+
+        <!-- GovChain -->
+        <div data-id="464" class="ecosystem-node glass-card p-6 rounded-2xl text-center max-w-xs w-full" style="border:1px solid rgba(239,68,68,0.2);">
+          <div data-id="465" class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background:rgba(239,68,68,0.1);">
+            <i data-id="466" data-lucide="landmark" class="w-7 h-7 text-red-400"></i>
+          </div>
+          <h3 data-id="467" class="font-bold text-red-400 mb-1">GovChain.us</h3>
+          <p data-id="468" class="text-xs text-qtext-secondary">Government document &amp; credential verification infrastructure</p>
+        </div>
+      </div>
+
+      <!-- AuthiChain below -->
+      <div data-id="469" class="flex justify-center mt-8">
+        <div data-id="470" class="ecosystem-node glass-card p-6 rounded-2xl text-center max-w-xs w-full" style="border:1px solid rgba(6,182,212,0.3);">
+          <div data-id="471" class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background:rgba(6,182,212,0.15);">
+            <i data-id="472" data-lucide="shield-check" class="w-7 h-7 text-qcyan-400"></i>
+          </div>
+          <h3 data-id="473" class="font-bold text-qcyan-400 mb-1">AuthiChain.com</h3>
+          <p data-id="474" class="text-xs text-qtext-secondary">Parent protocol powering all verification chains in the ecosystem</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 9: AUTOMATION & INFRASTRUCTURE ===== -->
+<section data-id="475" id="infra-k2l2" class="py-20 md:py-28 relative">
+  <div data-id="476" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="477" class="section-reveal text-center mb-16">
+      <span data-id="478" class="text-xs font-semibold tracking-[0.2em] uppercase text-qcyan-400 mb-3 block">Infrastructure</span>
+      <h2 data-id="479" id="infra-title-m2n2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Automation & Infrastructure</h2>
+      <p data-id="480" class="text-qtext-secondary max-w-2xl mx-auto">Enterprise-grade automation and data infrastructure powering protocol operations.</p>
+    </div>
+
+    <!-- Data Flow Diagram -->
+    <div data-id="481" class="section-reveal mb-14">
+      <div data-id="482" class="flex flex-wrap justify-center items-center gap-3 md:gap-4">
+        <div data-id="483" class="glass-card px-4 py-3 rounded-xl text-center">
+          <i data-id="484" data-lucide="building-2" class="w-5 h-5 text-qviolet-400 mx-auto mb-1"></i>
+          <span data-id="485" class="text-xs text-qtext-secondary block">Brand</span>
+        </div>
+        <i data-id="486" data-lucide="arrow-right" class="w-4 h-4 text-qviolet-400/50 hidden md:block"></i>
+        <i data-id="487" data-lucide="arrow-down" class="w-4 h-4 text-qviolet-400/50 md:hidden"></i>
+        <div data-id="488" class="glass-card px-4 py-3 rounded-xl text-center">
+          <i data-id="489" data-lucide="server" class="w-5 h-5 text-qcyan-400 mx-auto mb-1"></i>
+          <span data-id="490" class="text-xs text-qtext-secondary block">API</span>
+        </div>
+        <i data-id="491" data-lucide="arrow-right" class="w-4 h-4 text-qcyan-400/50 hidden md:block"></i>
+        <i data-id="492" data-lucide="arrow-down" class="w-4 h-4 text-qcyan-400/50 md:hidden"></i>
+        <div data-id="493" class="glass-card px-4 py-3 rounded-xl text-center">
+          <i data-id="494" data-lucide="file-code-2" class="w-5 h-5 text-qmagenta-400 mx-auto mb-1"></i>
+          <span data-id="495" class="text-xs text-qtext-secondary block">Smart Contract</span>
+        </div>
+        <i data-id="496" data-lucide="arrow-right" class="w-4 h-4 text-qmagenta-400/50 hidden md:block"></i>
+        <i data-id="497" data-lucide="arrow-down" class="w-4 h-4 text-qmagenta-400/50 md:hidden"></i>
+        <div data-id="498" class="glass-card px-4 py-3 rounded-xl text-center">
+          <i data-id="499" data-lucide="blocks" class="w-5 h-5 text-qgold-400 mx-auto mb-1"></i>
+          <span data-id="500" class="text-xs text-qtext-secondary block">Blockchain</span>
+        </div>
+        <i data-id="501" data-lucide="arrow-right" class="w-4 h-4 text-qgold-400/50 hidden md:block"></i>
+        <i data-id="502" data-lucide="arrow-down" class="w-4 h-4 text-qgold-400/50 md:hidden"></i>
+        <div data-id="503" class="glass-card px-4 py-3 rounded-xl text-center">
+          <i data-id="504" data-lucide="user-check" class="w-5 h-5 text-green-400 mx-auto mb-1"></i>
+          <span data-id="505" class="text-xs text-qtext-secondary block">Consumer</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automation scenarios + tables -->
+    <div data-id="506" class="section-reveal grid md:grid-cols-2 gap-8">
+      <div data-id="507">
+        <h3 data-id="508" class="font-bold text-lg text-qtext-primary mb-5 flex items-center gap-2"><i data-id="509" data-lucide="cog" class="w-5 h-5 text-qviolet-400"></i> Automation Scenarios</h3>
+        <div data-id="510" class="space-y-3">
+          <div data-id="511" class="glass-card p-4 rounded-xl flex items-center gap-3">
+            <div data-id="512" class="w-9 h-9 rounded-lg bg-qviolet-500/20 flex items-center justify-center shrink-0"><i data-id="513" data-lucide="file-code-2" class="w-4 h-4 text-qviolet-400"></i></div>
+            <div data-id="514"><p data-id="515" class="text-sm font-semibold text-qtext-primary">Contract Ops</p><p data-id="516" class="text-xs text-qtext-muted">Deployment, upgrades, and monitoring</p></div>
+          </div>
+          <div data-id="517" class="glass-card p-4 rounded-xl flex items-center gap-3">
+            <div data-id="518" class="w-9 h-9 rounded-lg bg-qmagenta-500/20 flex items-center justify-center shrink-0"><i data-id="519" data-lucide="bar-chart-3" class="w-4 h-4 text-qmagenta-400"></i></div>
+            <div data-id="520"><p data-id="521" class="text-sm font-semibold text-qtext-primary">Tokenomics Engine</p><p data-id="522" class="text-xs text-qtext-muted">Emission calculations, burn tracking</p></div>
+          </div>
+          <div data-id="523" class="glass-card p-4 rounded-xl flex items-center gap-3">
+            <div data-id="524" class="w-9 h-9 rounded-lg bg-qcyan-500/20 flex items-center justify-center shrink-0"><i data-id="525" data-lucide="database" class="w-4 h-4 text-qcyan-400"></i></div>
+            <div data-id="526"><p data-id="527" class="text-sm font-semibold text-qtext-primary">Data Pipeline</p><p data-id="528" class="text-xs text-qtext-muted">Real-time indexing, analytics, alerts</p></div>
+          </div>
+          <div data-id="529" class="glass-card p-4 rounded-xl flex items-center gap-3">
+            <div data-id="530" class="w-9 h-9 rounded-lg bg-qgold-500/20 flex items-center justify-center shrink-0"><i data-id="531" data-lucide="settings" class="w-4 h-4 text-qgold-400"></i></div>
+            <div data-id="532"><p data-id="533" class="text-sm font-semibold text-qtext-primary">Operations</p><p data-id="534" class="text-xs text-qtext-muted">Team notifications, status updates, reporting</p></div>
+          </div>
+        </div>
+      </div>
+      <div data-id="535">
+        <h3 data-id="536" class="font-bold text-lg text-qtext-primary mb-5 flex items-center gap-2"><i data-id="537" data-lucide="layers" class="w-5 h-5 text-qcyan-400"></i> Tech Stack</h3>
+        <div data-id="538" class="flex flex-wrap gap-3 mb-6">
+          <span data-id="539" class="glass-card px-3 py-1.5 rounded-lg text-xs font-mono text-qviolet-300">Polygon PoS</span>
+          <span data-id="540" class="glass-card px-3 py-1.5 rounded-lg text-xs font-mono text-qmagenta-300">Solidity ^0.8</span>
+          <span data-id="541" class="glass-card px-3 py-1.5 rounded-lg text-xs font-mono text-qcyan-300">Make.com</span>
+          <span data-id="542" class="glass-card px-3 py-1.5 rounded-lg text-xs font-mono text-qgold-300">Airtable</span>
+          <span data-id="543" class="glass-card px-3 py-1.5 rounded-lg text-xs font-mono text-green-300">Cloudflare Workers</span>
+          <span data-id="544" class="glass-card px-3 py-1.5 rounded-lg text-xs font-mono text-blue-300">Supabase</span>
+        </div>
+        <div data-id="545" class="glass-card p-4 rounded-xl">
+          <p data-id="546" class="text-sm font-semibold text-qtext-primary mb-3">12 Airtable Tables</p>
+          <div data-id="547" class="grid grid-cols-2 gap-1.5">
+            <span data-id="548" class="text-xs text-qtext-muted">Token Registry</span>
+            <span data-id="549" class="text-xs text-qtext-muted">Staking Ledger</span>
+            <span data-id="550" class="text-xs text-qtext-muted">Fee Router Log</span>
+            <span data-id="551" class="text-xs text-qtext-muted">Brand Accounts</span>
+            <span data-id="552" class="text-xs text-qtext-muted">Campaign Pool</span>
+            <span data-id="553" class="text-xs text-qtext-muted">Seal Records</span>
+            <span data-id="554" class="text-xs text-qtext-muted">Scan Analytics</span>
+            <span data-id="555" class="text-xs text-qtext-muted">Reward Epochs</span>
+            <span data-id="556" class="text-xs text-qtext-muted">Governance Votes</span>
+            <span data-id="557" class="text-xs text-qtext-muted">Audit Trail</span>
+            <span data-id="558" class="text-xs text-qtext-muted">Partner Registry</span>
+            <span data-id="559" class="text-xs text-qtext-muted">Burn Tracker</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 10: ARTISTIC QR GALLERY ===== -->
+<section data-id="560" id="gallery-o2p2" class="py-20 md:py-28 relative" style="background:linear-gradient(180deg,rgba(20,20,40,0.4) 0%,rgba(10,10,26,1) 100%);">
+  <div data-id="561" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="562" class="section-reveal text-center mb-16">
+      <span data-id="563" class="text-xs font-semibold tracking-[0.2em] uppercase text-qmagenta-400 mb-3 block">Gallery</span>
+      <h2 data-id="564" id="gallery-title-q2r2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">QronCodes — Where Art Meets Authentication</h2>
+      <p data-id="565" class="text-qtext-secondary max-w-xl mx-auto">Every QronCode is unique. Every scan tells a story.</p>
+    </div>
+
+    <div data-id="566" class="section-reveal grid grid-cols-2 md:grid-cols-3 gap-5">
+      <!-- Nebula Seal -->
+      <div data-id="567" class="glass-card rounded-2xl p-5 group cursor-pointer">
+        <div data-id="568" class="aspect-square rounded-xl overflow-hidden mb-3 relative" style="background:linear-gradient(135deg,#1a0533,#2d1b69);">
+          <div data-id="569" class="absolute inset-0 flex items-center justify-center">
+            <div data-id="570" class="w-3/4 h-3/4 rounded-lg" style="background:radial-gradient(circle at 30% 40%,#8b5cf6 0%,transparent 40%),radial-gradient(circle at 70% 60%,#d946ef 0%,transparent 40%),radial-gradient(circle at 50% 50%,#06b6d4 0%,transparent 30%);opacity:0.9;">
+              <div data-id="571" class="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px] p-2">
+                <div data-id="572" class="bg-white/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="573" class="bg-white/20 rounded-sm"></div><div data-id="574" class="bg-white/60 rounded-sm"></div>
+                <div data-id="575" class="bg-white/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="576" class="bg-white/40 rounded-sm"></div><div data-id="577" class="bg-white/10 rounded-sm"></div>
+                <div data-id="578" class="bg-white/30 rounded-sm"></div><div data-id="579" class="bg-white/50 rounded-sm"></div>
+                <div data-id="580" class="bg-white/20 rounded-sm"></div><div data-id="581" class="bg-white/60 rounded-sm"></div>
+                <div data-id="582" class="bg-white/40 rounded-sm"></div><div data-id="583" class="bg-white/10 rounded-sm"></div>
+                <div data-id="584" class="bg-white/50 rounded-sm"></div><div data-id="585" class="bg-white/30 rounded-sm"></div>
+                <div data-id="586" class="bg-white/20 rounded-sm"></div><div data-id="587" class="bg-white/70 rounded-sm"></div>
+                <div data-id="588" class="bg-white/10 rounded-sm"></div><div data-id="589" class="bg-white/40 rounded-sm"></div>
+                <div data-id="590" class="bg-white/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="591" class="bg-white/30 rounded-sm"></div><div data-id="592" class="bg-white/60 rounded-sm"></div>
+                <div data-id="593" class="bg-white/50 rounded-sm"></div><div data-id="594" class="bg-white/20 rounded-sm"></div>
+              </div>
+            </div>
+          </div>
+          <div data-id="595" class="absolute inset-0 bg-qviolet-500/0 group-hover:bg-qviolet-500/20 transition-all duration-500 flex items-center justify-center">
+            <i data-id="596" data-lucide="scan-line" class="w-10 h-10 text-white opacity-0 group-hover:opacity-80 transition-all duration-500 transform scale-50 group-hover:scale-100"></i>
+          </div>
+        </div>
+        <p data-id="597" class="text-sm font-semibold text-qtext-primary">Nebula Seal</p>
+        <p data-id="598" class="text-xs text-qtext-muted">Cosmic provenance</p>
+      </div>
+
+      <!-- Circuit Trust -->
+      <div data-id="599" class="glass-card rounded-2xl p-5 group cursor-pointer">
+        <div data-id="600" class="aspect-square rounded-xl overflow-hidden mb-3 relative" style="background:linear-gradient(135deg,#0a1628,#142040);">
+          <div data-id="601" class="absolute inset-0 flex items-center justify-center">
+            <div data-id="602" class="w-3/4 h-3/4 rounded-lg" style="background:repeating-linear-gradient(0deg,transparent,transparent 10px,rgba(6,182,212,0.15) 10px,rgba(6,182,212,0.15) 11px),repeating-linear-gradient(90deg,transparent,transparent 10px,rgba(6,182,212,0.15) 10px,rgba(6,182,212,0.15) 11px);">
+              <div data-id="603" class="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px] p-2">
+                <div data-id="604" class="bg-cyan-400/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="605" class="bg-cyan-400/20 rounded-sm"></div><div data-id="606" class="bg-cyan-400/50 rounded-sm"></div>
+                <div data-id="607" class="bg-cyan-400/70 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="608" class="bg-cyan-400/30 rounded-sm"></div><div data-id="609" class="bg-cyan-400/10 rounded-sm"></div>
+                <div data-id="610" class="bg-cyan-400/40 rounded-sm"></div><div data-id="611" class="bg-cyan-400/60 rounded-sm"></div>
+                <div data-id="612" class="bg-cyan-400/20 rounded-sm"></div><div data-id="613" class="bg-cyan-400/50 rounded-sm"></div>
+                <div data-id="614" class="bg-cyan-400/30 rounded-sm"></div><div data-id="615" class="bg-cyan-400/10 rounded-sm"></div>
+                <div data-id="616" class="bg-cyan-400/60 rounded-sm"></div><div data-id="617" class="bg-cyan-400/40 rounded-sm"></div>
+                <div data-id="618" class="bg-cyan-400/20 rounded-sm"></div><div data-id="619" class="bg-cyan-400/70 rounded-sm"></div>
+                <div data-id="620" class="bg-cyan-400/10 rounded-sm"></div><div data-id="621" class="bg-cyan-400/40 rounded-sm"></div>
+                <div data-id="622" class="bg-cyan-400/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="623" class="bg-cyan-400/30 rounded-sm"></div><div data-id="624" class="bg-cyan-400/60 rounded-sm"></div>
+                <div data-id="625" class="bg-cyan-400/50 rounded-sm"></div><div data-id="626" class="bg-cyan-400/20 rounded-sm"></div>
+              </div>
+            </div>
+          </div>
+          <div data-id="627" class="absolute inset-0 bg-qcyan-500/0 group-hover:bg-qcyan-500/20 transition-all duration-500 flex items-center justify-center">
+            <i data-id="628" data-lucide="scan-line" class="w-10 h-10 text-white opacity-0 group-hover:opacity-80 transition-all duration-500 transform scale-50 group-hover:scale-100"></i>
+          </div>
+        </div>
+        <p data-id="629" class="text-sm font-semibold text-qtext-primary">Circuit Trust</p>
+        <p data-id="630" class="text-xs text-qtext-muted">Digital precision</p>
+      </div>
+
+      <!-- Aurora Mark -->
+      <div data-id="631" class="glass-card rounded-2xl p-5 group cursor-pointer">
+        <div data-id="632" class="aspect-square rounded-xl overflow-hidden mb-3 relative" style="background:linear-gradient(135deg,#0a1a0a,#1a2a1a);">
+          <div data-id="633" class="absolute inset-0 flex items-center justify-center">
+            <div data-id="634" class="w-3/4 h-3/4 rounded-lg" style="background:linear-gradient(180deg,rgba(34,197,94,0.3),rgba(139,92,246,0.3),rgba(217,70,239,0.2));">
+              <div data-id="635" class="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px] p-2">
+                <div data-id="636" class="bg-green-400/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="637" class="bg-green-400/30 rounded-sm"></div><div data-id="638" class="bg-violet-400/50 rounded-sm"></div>
+                <div data-id="639" class="bg-violet-400/70 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="640" class="bg-green-400/40 rounded-sm"></div><div data-id="641" class="bg-violet-400/20 rounded-sm"></div>
+                <div data-id="642" class="bg-green-400/50 rounded-sm"></div><div data-id="643" class="bg-violet-400/40 rounded-sm"></div>
+                <div data-id="644" class="bg-pink-400/30 rounded-sm"></div><div data-id="645" class="bg-green-400/60 rounded-sm"></div>
+                <div data-id="646" class="bg-violet-400/20 rounded-sm"></div><div data-id="647" class="bg-pink-400/40 rounded-sm"></div>
+                <div data-id="648" class="bg-green-400/40 rounded-sm"></div><div data-id="649" class="bg-violet-400/30 rounded-sm"></div>
+                <div data-id="650" class="bg-pink-400/50 rounded-sm"></div><div data-id="651" class="bg-green-400/20 rounded-sm"></div>
+                <div data-id="652" class="bg-violet-400/60 rounded-sm"></div><div data-id="653" class="bg-pink-400/30 rounded-sm"></div>
+                <div data-id="654" class="bg-pink-400/70 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="655" class="bg-violet-400/40 rounded-sm"></div><div data-id="656" class="bg-green-400/50 rounded-sm"></div>
+                <div data-id="657" class="bg-pink-400/30 rounded-sm"></div><div data-id="658" class="bg-violet-400/60 rounded-sm"></div>
+              </div>
+            </div>
+          </div>
+          <div data-id="659" class="absolute inset-0 bg-green-500/0 group-hover:bg-green-500/20 transition-all duration-500 flex items-center justify-center">
+            <i data-id="660" data-lucide="scan-line" class="w-10 h-10 text-white opacity-0 group-hover:opacity-80 transition-all duration-500 transform scale-50 group-hover:scale-100"></i>
+          </div>
+        </div>
+        <p data-id="661" class="text-sm font-semibold text-qtext-primary">Aurora Mark</p>
+        <p data-id="662" class="text-xs text-qtext-muted">Natural harmony</p>
+      </div>
+
+      <!-- Crystal Chain -->
+      <div data-id="663" class="glass-card rounded-2xl p-5 group cursor-pointer">
+        <div data-id="664" class="aspect-square rounded-xl overflow-hidden mb-3 relative" style="background:linear-gradient(135deg,#1a0a2e,#2a1a40);">
+          <div data-id="665" class="absolute inset-0 flex items-center justify-center">
+            <div data-id="666" class="w-3/4 h-3/4 rounded-lg" style="background:conic-gradient(from 45deg,rgba(139,92,246,0.4),rgba(6,182,212,0.4),rgba(217,70,239,0.4),rgba(139,92,246,0.4));">
+              <div data-id="667" class="w-full h-full grid grid-cols-6 grid-rows-6 gap-[3px] p-2">
+                <div data-id="668" class="bg-white/70 rounded-full col-span-2 row-span-2"></div>
+                <div data-id="669" class="bg-white/20 rounded-full"></div><div data-id="670" class="bg-white/50 rounded-full"></div>
+                <div data-id="671" class="bg-white/60 rounded-full col-span-2 row-span-2"></div>
+                <div data-id="672" class="bg-white/30 rounded-full"></div><div data-id="673" class="bg-white/10 rounded-full"></div>
+                <div data-id="674" class="bg-white/40 rounded-full"></div><div data-id="675" class="bg-white/60 rounded-full"></div>
+                <div data-id="676" class="bg-white/20 rounded-full"></div><div data-id="677" class="bg-white/40 rounded-full"></div>
+                <div data-id="678" class="bg-white/50 rounded-full"></div><div data-id="679" class="bg-white/30 rounded-full"></div>
+                <div data-id="680" class="bg-white/10 rounded-full"></div><div data-id="681" class="bg-white/60 rounded-full"></div>
+                <div data-id="682" class="bg-white/40 rounded-full"></div><div data-id="683" class="bg-white/20 rounded-full"></div>
+                <div data-id="684" class="bg-white/30 rounded-full"></div><div data-id="685" class="bg-white/70 rounded-full"></div>
+                <div data-id="686" class="bg-white/60 rounded-full col-span-2 row-span-2"></div>
+                <div data-id="687" class="bg-white/40 rounded-full"></div><div data-id="688" class="bg-white/20 rounded-full"></div>
+                <div data-id="689" class="bg-white/50 rounded-full"></div><div data-id="690" class="bg-white/30 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+          <div data-id="691" class="absolute inset-0 bg-qmagenta-500/0 group-hover:bg-qmagenta-500/20 transition-all duration-500 flex items-center justify-center">
+            <i data-id="692" data-lucide="scan-line" class="w-10 h-10 text-white opacity-0 group-hover:opacity-80 transition-all duration-500 transform scale-50 group-hover:scale-100"></i>
+          </div>
+        </div>
+        <p data-id="693" class="text-sm font-semibold text-qtext-primary">Crystal Chain</p>
+        <p data-id="694" class="text-xs text-qtext-muted">Faceted trust</p>
+      </div>
+
+      <!-- Prism Code -->
+      <div data-id="695" class="glass-card rounded-2xl p-5 group cursor-pointer">
+        <div data-id="696" class="aspect-square rounded-xl overflow-hidden mb-3 relative" style="background:linear-gradient(135deg,#1a1a0a,#2a2a14);">
+          <div data-id="697" class="absolute inset-0 flex items-center justify-center">
+            <div data-id="698" class="w-3/4 h-3/4 rounded-lg" style="background:linear-gradient(135deg,rgba(245,158,11,0.4),rgba(239,68,68,0.3),rgba(217,70,239,0.3));">
+              <div data-id="699" class="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px] p-2">
+                <div data-id="700" class="bg-amber-400/80 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="701" class="bg-red-400/30 rounded-sm"></div><div data-id="702" class="bg-amber-400/50 rounded-sm"></div>
+                <div data-id="703" class="bg-red-400/60 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="704" class="bg-amber-400/40 rounded-sm"></div><div data-id="705" class="bg-pink-400/20 rounded-sm"></div>
+                <div data-id="706" class="bg-red-400/50 rounded-sm"></div><div data-id="707" class="bg-amber-400/60 rounded-sm"></div>
+                <div data-id="708" class="bg-pink-400/30 rounded-sm"></div><div data-id="709" class="bg-amber-400/40 rounded-sm"></div>
+                <div data-id="710" class="bg-red-400/20 rounded-sm"></div><div data-id="711" class="bg-pink-400/50 rounded-sm"></div>
+                <div data-id="712" class="bg-amber-400/60 rounded-sm"></div><div data-id="713" class="bg-red-400/30 rounded-sm"></div>
+                <div data-id="714" class="bg-pink-400/40 rounded-sm"></div><div data-id="715" class="bg-amber-400/20 rounded-sm"></div>
+                <div data-id="716" class="bg-red-400/50 rounded-sm"></div><div data-id="717" class="bg-pink-400/60 rounded-sm"></div>
+                <div data-id="718" class="bg-pink-400/70 rounded-sm col-span-2 row-span-2"></div>
+                <div data-id="719" class="bg-amber-400/40 rounded-sm"></div><div data-id="720" class="bg-red-400/50 rounded-sm"></div>
+                <div data-id="721" class="bg-amber-400/30 rounded-sm"></div><div data-id="722" class="bg-pink-400/40 rounded-sm"></div>
+              </div>
+            </div>
+          </div>
+          <div data-id="723" class="absolute inset-0 bg-amber-500/0 group-hover:bg-amber-500/20 transition-all duration-500 flex items-center justify-center">
+            <i data-id="724" data-lucide="scan-line" class="w-10 h-10 text-white opacity-0 group-hover:opacity-80 transition-all duration-500 transform scale-50 group-hover:scale-100"></i>
+          </div>
+        </div>
+        <p data-id="725" class="text-sm font-semibold text-qtext-primary">Prism Code</p>
+        <p data-id="726" class="text-xs text-qtext-muted">Spectral light</p>
+      </div>
+
+      <!-- Quantum Stamp -->
+      <div data-id="727" class="glass-card rounded-2xl p-5 group cursor-pointer">
+        <div data-id="728" class="aspect-square rounded-xl overflow-hidden mb-3 relative" style="background:linear-gradient(135deg,#0a0a2e,#14143c);">
+          <div data-id="729" class="absolute inset-0 flex items-center justify-center">
+            <div data-id="730" class="w-3/4 h-3/4 rounded-lg" style="background:radial-gradient(ellipse at center,rgba(139,92,246,0.5) 0%,rgba(6,182,212,0.3) 50%,transparent 70%);">
+              <div data-id="731" class="w-full h-full grid grid-cols-6 grid-rows-6 gap-[2px] p-2">
+                <div data-id="732" class="bg-violet-300/80 rounded col-span-2 row-span-2"></div>
+                <div data-id="733" class="bg-cyan-300/30 rounded"></div><div data-id="734" class="bg-violet-300/50 rounded"></div>
+                <div data-id="735" class="bg-cyan-300/60 rounded col-span-2 row-span-2"></div>
+                <div data-id="736" class="bg-violet-300/40 rounded"></div><div data-id="737" class="bg-cyan-300/20 rounded"></div>
+                <div data-id="738" class="bg-violet-300/50 rounded"></div><div data-id="739" class="bg-cyan-300/40 rounded"></div>
+                <div data-id="740" class="bg-violet-300/30 rounded"></div><div data-id="741" class="bg-cyan-300/60 rounded"></div>
+                <div data-id="742" class="bg-cyan-300/20 rounded"></div><div data-id="743" class="bg-violet-300/40 rounded"></div>
+                <div data-id="744" class="bg-cyan-300/50 rounded"></div><div data-id="745" class="bg-violet-300/30 rounded"></div>
+                <div data-id="746" class="bg-violet-300/60 rounded"></div><div data-id="747" class="bg-cyan-300/20 rounded"></div>
+                <div data-id="748" class="bg-cyan-300/40 rounded"></div><div data-id="749" class="bg-violet-300/70 rounded"></div>
+                <div data-id="750" class="bg-violet-300/60 rounded col-span-2 row-span-2"></div>
+                <div data-id="751" class="bg-cyan-300/30 rounded"></div><div data-id="752" class="bg-violet-300/50 rounded"></div>
+                <div data-id="753" class="bg-cyan-300/40 rounded"></div><div data-id="754" class="bg-violet-300/20 rounded"></div>
+              </div>
+            </div>
+          </div>
+          <div data-id="755" class="absolute inset-0 bg-violet-500/0 group-hover:bg-violet-500/20 transition-all duration-500 flex items-center justify-center">
+            <i data-id="756" data-lucide="scan-line" class="w-10 h-10 text-white opacity-0 group-hover:opacity-80 transition-all duration-500 transform scale-50 group-hover:scale-100"></i>
+          </div>
+        </div>
+        <p data-id="757" class="text-sm font-semibold text-qtext-primary">Quantum Stamp</p>
+        <p data-id="758" class="text-xs text-qtext-muted">Quantum entangled</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 11: ROADMAP ===== -->
+<section data-id="759" id="roadmap-s2t2" class="py-20 md:py-28 relative">
+  <div data-id="760" class="max-w-4xl mx-auto px-4 md:px-6">
+    <div data-id="761" class="section-reveal text-center mb-16">
+      <span data-id="762" class="text-xs font-semibold tracking-[0.2em] uppercase text-qviolet-400 mb-3 block">Roadmap</span>
+      <h2 data-id="763" id="roadmap-title-u2v2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">The Path Forward</h2>
+      <p data-id="764" class="text-qtext-secondary max-w-xl mx-auto">From launch to global scale — every milestone mapped.</p>
+    </div>
+
+    <div data-id="765" class="section-reveal relative">
+      <div data-id="766" class="timeline-line"></div>
+
+      <!-- Q1 2026 -->
+      <div data-id="767" class="relative flex flex-col md:flex-row items-start md:items-center mb-12 md:mb-16">
+        <div data-id="768" class="ml-10 md:ml-0 md:w-1/2 md:pr-12 md:text-right">
+          <div data-id="769" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/15 border border-green-500/30 mb-2">
+            <i data-id="770" data-lucide="check-circle-2" class="w-3.5 h-3.5 text-green-400"></i>
+            <span data-id="771" class="text-xs font-semibold text-green-400">Completed</span>
+          </div>
+          <h3 data-id="772" class="font-bold text-lg text-qtext-primary">Q1 2026</h3>
+          <p data-id="773" class="text-sm text-qtext-secondary mt-1">Token Launch &amp; Smart Contract Deployment</p>
+          <ul data-id="774" class="text-xs text-qtext-muted mt-2 space-y-1 md:text-right">
+            <li data-id="775">ERC-20 token deployed on Polygon</li>
+            <li data-id="776">Core smart contracts audited</li>
+            <li data-id="777">Initial liquidity established</li>
+          </ul>
+        </div>
+        <div data-id="778" class="absolute left-[14px] md:left-1/2 md:-translate-x-1/2 w-5 h-5 rounded-full bg-green-400 border-4 border-qbg z-10 top-1"></div>
+        <div data-id="779" class="hidden md:block md:w-1/2 md:pl-12"></div>
+      </div>
+
+      <!-- Q2 2026 -->
+      <div data-id="780" class="relative flex flex-col md:flex-row items-start md:items-center mb-12 md:mb-16">
+        <div data-id="781" class="hidden md:block md:w-1/2 md:pr-12"></div>
+        <div data-id="782" class="absolute left-[14px] md:left-1/2 md:-translate-x-1/2 w-5 h-5 rounded-full border-4 border-qbg z-10 top-1" style="background:linear-gradient(135deg,#8b5cf6,#d946ef);box-shadow:0 0 12px rgba(139,92,246,0.5);"></div>
+        <div data-id="783" class="ml-10 md:ml-0 md:w-1/2 md:pl-12">
+          <div data-id="784" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-qviolet-500/15 border border-qviolet-500/30 mb-2">
+            <span data-id="785" class="w-2 h-2 rounded-full bg-qviolet-400 animate-pulse"></span>
+            <span data-id="786" class="text-xs font-semibold text-qviolet-400">In Progress</span>
+          </div>
+          <h3 data-id="787" class="font-bold text-lg text-qtext-primary">Q2 2026</h3>
+          <p data-id="788" class="text-sm text-qtext-secondary mt-1">StrainChain Michigan Pilot &amp; Brand Onboarding</p>
+          <ul data-id="789" class="text-xs text-qtext-muted mt-2 space-y-1">
+            <li data-id="790">StrainChain live in Michigan dispensaries</li>
+            <li data-id="791">First brand partnerships signed</li>
+            <li data-id="792">FiatSwapBridge activated</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Q3 2026 -->
+      <div data-id="793" class="relative flex flex-col md:flex-row items-start md:items-center mb-12 md:mb-16">
+        <div data-id="794" class="ml-10 md:ml-0 md:w-1/2 md:pr-12 md:text-right">
+          <h3 data-id="795" class="font-bold text-lg text-qtext-primary">Q3 2026</h3>
+          <p data-id="796" class="text-sm text-qtext-secondary mt-1">GovChain Federal Pilot &amp; Staking Platform Launch</p>
+          <ul data-id="797" class="text-xs text-qtext-muted mt-2 space-y-1 md:text-right">
+            <li data-id="798">GovChain government pilot begins</li>
+            <li data-id="799">Staking vault goes live</li>
+            <li data-id="800">Governance portal launch</li>
+          </ul>
+        </div>
+        <div data-id="801" class="absolute left-[14px] md:left-1/2 md:-translate-x-1/2 w-5 h-5 rounded-full bg-qtext-muted/50 border-4 border-qbg z-10 top-1"></div>
+        <div data-id="802" class="hidden md:block md:w-1/2 md:pl-12"></div>
+      </div>
+
+      <!-- Q4 2026 -->
+      <div data-id="803" class="relative flex flex-col md:flex-row items-start md:items-center mb-12 md:mb-16">
+        <div data-id="804" class="hidden md:block md:w-1/2 md:pr-12"></div>
+        <div data-id="805" class="absolute left-[14px] md:left-1/2 md:-translate-x-1/2 w-5 h-5 rounded-full bg-qtext-muted/50 border-4 border-qbg z-10 top-1"></div>
+        <div data-id="806" class="ml-10 md:ml-0 md:w-1/2 md:pl-12">
+          <h3 data-id="807" class="font-bold text-lg text-qtext-primary">Q4 2026</h3>
+          <p data-id="808" class="text-sm text-qtext-secondary mt-1">Cross-chain Bridge &amp; DEX Listings</p>
+          <ul data-id="809" class="text-xs text-qtext-muted mt-2 space-y-1">
+            <li data-id="810">Cross-chain bridge deployment</li>
+            <li data-id="811">DEX listings on major platforms</li>
+            <li data-id="812">Campaign pool launch for brands</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2027 -->
+      <div data-id="813" class="relative flex flex-col md:flex-row items-start md:items-center">
+        <div data-id="814" class="ml-10 md:ml-0 md:w-1/2 md:pr-12 md:text-right">
+          <h3 data-id="815" class="font-bold text-lg text-qtext-primary">2027</h3>
+          <p data-id="816" class="text-sm text-qtext-secondary mt-1">Global Scale &amp; Enterprise Partnerships</p>
+          <ul data-id="817" class="text-xs text-qtext-muted mt-2 space-y-1 md:text-right">
+            <li data-id="818">Multi-chain deployment</li>
+            <li data-id="819">Fortune 500 brand partnerships</li>
+            <li data-id="820">100M+ verifications milestone</li>
+          </ul>
+        </div>
+        <div data-id="821" class="absolute left-[14px] md:left-1/2 md:-translate-x-1/2 w-5 h-5 rounded-full bg-qtext-muted/30 border-4 border-qbg z-10 top-1"></div>
+        <div data-id="822" class="hidden md:block md:w-1/2 md:pl-12"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 12: CTA / NEWSLETTER ===== -->
+<section data-id="823" id="cta-w2x2" class="py-20 md:py-28 relative overflow-hidden">
+  <div data-id="824" class="absolute inset-0" style="background:radial-gradient(ellipse at center,rgba(139,92,246,0.1) 0%,transparent 60%);"></div>
+  <div data-id="825" class="max-w-3xl mx-auto px-4 md:px-6 relative z-10">
+    <div data-id="826" class="section-reveal text-center">
+      <h2 data-id="827" id="cta-title-y2z2" class="text-3xl md:text-5xl font-bold text-qtext-primary mb-4">Join the Trust Revolution</h2>
+      <p data-id="828" class="text-qtext-secondary mb-10 max-w-xl mx-auto">Get early access to protocol updates, token events, and ecosystem news. Be part of the movement that's making authentication beautiful.</p>
+
+      <div data-id="829" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-10">
+        <input data-id="830" id="email-input-a3b3" type="email" placeholder="Enter your email" class="flex-1 px-5 py-3 rounded-xl text-sm bg-qbg-elevated border border-qviolet-500/20 text-qtext-primary placeholder:text-qtext-muted focus:outline-none focus:border-qviolet-500/50 focus:ring-1 focus:ring-qviolet-500/30" />
+        <button data-id="831" id="subscribe-btn-c3d3" class="px-6 py-3 rounded-xl text-sm font-semibold text-white glow-btn shrink-0" style="background:linear-gradient(135deg,#7c3aed,#8b5cf6);">Subscribe</button>
+      </div>
+
+      <!-- Social Links -->
+      <div data-id="832" class="flex items-center justify-center gap-4 mb-8">
+        <a data-id="833" href="#" class="w-11 h-11 rounded-xl glass-card flex items-center justify-center hover:border-qviolet-500/50 transition-all" aria-label="Twitter / X">
+          <i data-id="834" data-lucide="twitter" class="w-5 h-5 text-qtext-secondary"></i>
+        </a>
+        <a data-id="835" href="#" class="w-11 h-11 rounded-xl glass-card flex items-center justify-center hover:border-qviolet-500/50 transition-all" aria-label="Discord">
+          <i data-id="836" data-lucide="message-circle" class="w-5 h-5 text-qtext-secondary"></i>
+        </a>
+        <a data-id="837" href="#" class="w-11 h-11 rounded-xl glass-card flex items-center justify-center hover:border-qviolet-500/50 transition-all" aria-label="Telegram">
+          <i data-id="838" data-lucide="send" class="w-5 h-5 text-qtext-secondary"></i>
+        </a>
+        <a data-id="839" href="#" class="w-11 h-11 rounded-xl glass-card flex items-center justify-center hover:border-qviolet-500/50 transition-all" aria-label="GitHub">
+          <i data-id="840" data-lucide="github" class="w-5 h-5 text-qtext-secondary"></i>
+        </a>
+      </div>
+
+      <p data-id="841" class="text-sm text-qtext-muted">Built in Michigan. Securing the world.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer data-id="842" id="footer-e3f3" class="border-t border-qviolet-500/10 py-10">
+  <div data-id="843" class="max-w-7xl mx-auto px-4 md:px-6">
+    <div data-id="844" class="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div data-id="845" class="flex items-center gap-2">
+        <div data-id="846" class="w-7 h-7 rounded-lg bg-gradient-to-br from-qviolet-500 to-qmagenta-500 flex items-center justify-center font-black text-white text-xs">Q</div>
+        <span data-id="847" class="text-sm font-bold text-qtext-primary">QRON</span>
+      </div>
+      <div data-id="848" class="flex flex-wrap items-center justify-center gap-5 text-xs text-qtext-muted">
+        <a data-id="849" href="#protocol-e5f6" class="hover:text-qtext-primary transition-colors">Protocol</a>
+        <a data-id="850" href="#token-g7h8" class="hover:text-qtext-primary transition-colors">Token</a>
+        <a data-id="851" href="#staking-i9j0" class="hover:text-qtext-primary transition-colors">Staking</a>
+        <a data-id="852" href="#" class="hover:text-qtext-primary transition-colors">Docs</a>
+        <a data-id="853" href="#" class="hover:text-qtext-primary transition-colors">GitHub</a>
+        <a data-id="854" href="#" class="hover:text-qtext-primary transition-colors">Legal</a>
+      </div>
+      <div data-id="855" class="flex items-center gap-3">
+        <span data-id="856" class="glass-card px-3 py-1 rounded-full text-[10px] text-qviolet-300 font-mono flex items-center gap-1.5">
+          <span data-id="857" class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+          Polygon Mainnet
+        </span>
+      </div>
+    </div>
+    <div data-id="858" class="text-center mt-8 space-y-1">
+      <p data-id="859" class="text-xs text-qtext-muted">&copy; 2026 QRON Protocol — An AuthiChain Ecosystem Project</p>
+      <p data-id="860" class="text-xs text-qtext-muted/60">Made by Copilot</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ===== LUCIDE ICONS =====
+  lucide.createIcons();
+
+  // ===== MOBILE MENU =====
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn-q7r8');
+  const mobileMenuClose = document.getElementById('mobile-menu-close-u1v2');
+  const mobileMenu = document.getElementById('mobile-menu-s9t0');
+
+  mobileMenuBtn.addEventListener('click', () => {
+    mobileMenu.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  });
+  mobileMenuClose.addEventListener('click', () => {
+    mobileMenu.classList.add('hidden');
+    document.body.style.overflow = '';
+  });
+  document.querySelectorAll('.mobile-nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      mobileMenu.classList.add('hidden');
+      document.body.style.overflow = '';
+    });
+  });
+
+  // ===== NAV SCROLL EFFECT =====
+  const navHeader = document.getElementById('nav-header-a1b2');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 50) {
+      navHeader.style.background = 'rgba(10,10,26,0.95)';
+      navHeader.style.borderBottomColor = 'rgba(139,92,246,0.2)';
+    } else {
+      navHeader.style.background = 'rgba(10,10,26,0.85)';
+      navHeader.style.borderBottomColor = 'rgba(139,92,246,0.1)';
+    }
+  });
+
+  // ===== SCROLL REVEAL (Intersection Observer) =====
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.section-reveal').forEach(el => revealObserver.observe(el));
+
+  // ===== HERO PARTICLE CANVAS =====
+  (function() {
+    const canvas = document.getElementById('hero-particles-y5z6');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let animId;
+    let w, h;
+
+    function resize() {
+      const section = canvas.parentElement;
+      w = canvas.width = section.offsetWidth;
+      h = canvas.height = section.offsetHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * w;
+        this.y = Math.random() * h;
+        this.vx = (Math.random() - 0.5) * 0.4;
+        this.vy = (Math.random() - 0.5) * 0.4;
+        this.r = Math.random() * 2 + 0.5;
+        this.alpha = Math.random() * 0.4 + 0.1;
+        const colors = ['139,92,246','217,70,239','6,182,212'];
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > w) this.vx *= -1;
+        if (this.y < 0 || this.y > h) this.vy *= -1;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.color},${this.alpha})`;
+        ctx.fill();
+      }
+    }
+
+    const count = Math.min(80, Math.floor(w * h / 12000));
+    for (let i = 0; i < count; i++) particles.push(new Particle());
+
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(139,92,246,${0.08 * (1 - dist / 120)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, w, h);
+      particles.forEach(p => { p.update(); p.draw(); });
+      drawConnections();
+      animId = requestAnimationFrame(animate);
+    }
+    animate();
+  })();
+
+  // ===== QR GRID (Artistic QR pattern) =====
+  (function() {
+    const grid = document.getElementById('qr-grid-o1p1');
+    if (!grid) return;
+    // Create a pattern that resembles an artistic QR
+    const pattern = [
+      1,1,1,0,1,0,1,1,
+      1,0,1,1,0,1,0,1,
+      1,1,1,0,1,1,1,1,
+      0,0,0,1,0,0,0,0,
+      1,0,1,0,1,0,1,0,
+      0,1,0,1,0,1,0,1,
+      1,1,1,0,0,1,1,1,
+      1,0,1,1,1,1,0,1,
+    ];
+    const colors = [
+      'rgba(139,92,246,0.8)', 'rgba(139,92,246,0.6)',
+      'rgba(217,70,239,0.7)', 'rgba(217,70,239,0.5)',
+      'rgba(6,182,212,0.6)', 'rgba(6,182,212,0.4)',
+    ];
+    pattern.forEach((val, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'qr-cell';
+      if (val) {
+        cell.style.background = colors[i % colors.length];
+      } else {
+        cell.style.background = 'rgba(255,255,255,0.03)';
+      }
+      grid.appendChild(cell);
+    });
+  })();
+
+  // ===== LAYER CARD EXPAND =====
+  document.querySelectorAll('.layer-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const expand = card.querySelector('.layer-expand');
+      const chevron = card.querySelector('.layer-chevron');
+      const isOpen = expand.classList.contains('open');
+
+      // Close all
+      document.querySelectorAll('.layer-expand').forEach(e => e.classList.remove('open'));
+      document.querySelectorAll('.layer-chevron').forEach(c => c.style.transform = '');
+
+      if (!isOpen) {
+        expand.classList.add('open');
+        chevron.style.transform = 'rotate(180deg)';
+      }
+    });
+  });
+
+  // ===== CONTRACT NODE EXPAND =====
+  document.querySelectorAll('.contract-node').forEach(node => {
+    node.addEventListener('click', () => {
+      const contract = node.dataset.contract;
+      const detail = document.getElementById('detail-' + contract);
+      const isOpen = detail.classList.contains('open');
+
+      document.querySelectorAll('.contract-detail').forEach(d => d.classList.remove('open'));
+
+      if (!isOpen) {
+        detail.classList.add('open');
+      }
+    });
+  });
+
+  // ===== FEE ALLOCATION CHART =====
+  (function() {
+    const ctx = document.getElementById('fee-chart-a2b2');
+    if (!ctx) return;
+    new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Burn', 'Security Reserve', 'AI Compute', 'Treasury'],
+        datasets: [{
+          data: [20, 30, 30, 20],
+          backgroundColor: [
+            'rgba(239,68,68,0.8)',
+            'rgba(59,130,246,0.8)',
+            'rgba(139,92,246,0.8)',
+            'rgba(245,158,11,0.8)'
+          ],
+          borderColor: 'rgba(10,10,26,1)',
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(20,20,40,0.95)',
+            titleColor: '#e8e6f0',
+            bodyColor: '#a8a4b8',
+            borderColor: 'rgba(139,92,246,0.3)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8,
+            callbacks: {
+              label: function(context) {
+                return context.label + ': ' + context.parsed + '%';
+              }
+            }
+          }
+        },
+        animation: {
+          animateRotate: true,
+          duration: 1500
+        }
+      }
+    });
+  })();
+
+  // ===== FEE COUNTER ANIMATION =====
+  (function() {
+    const counterEl = document.getElementById('fee-counter-c2d2');
+    if (!counterEl) return;
+    let currentVal = 0;
+    const targetVal = 2847563;
+    let started = false;
+
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !started) {
+          started = true;
+          animateCounter();
+        }
+      });
+    }, { threshold: 0.3 });
+    counterObserver.observe(counterEl);
+
+    function animateCounter() {
+      const duration = 2500;
+      const startTime = performance.now();
+      function tick(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const val = Math.round(eased * targetVal);
+        counterEl.textContent = '$' + val.toLocaleString();
+        if (progress < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          // Continue slowly incrementing
+          setInterval(() => {
+            currentVal = parseInt(counterEl.textContent.replace(/[$,]/g, '')) || targetVal;
+            currentVal += Math.floor(Math.random() * 50) + 10;
+            counterEl.textContent = '$' + currentVal.toLocaleString();
+          }, 3000);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+  })();
+
+  // ===== SUBSCRIBE BUTTON =====
+  const subscribeBtn = document.getElementById('subscribe-btn-c3d3');
+  const emailInput = document.getElementById('email-input-a3b3');
+  subscribeBtn.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    if (email && email.includes('@')) {
+      subscribeBtn.textContent = 'Subscribed!';
+      subscribeBtn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+      emailInput.value = '';
+      setTimeout(() => {
+        subscribeBtn.textContent = 'Subscribe';
+        subscribeBtn.style.background = 'linear-gradient(135deg,#7c3aed,#8b5cf6)';
+      }, 3000);
+    } else {
+      emailInput.style.borderColor = 'rgba(239,68,68,0.5)';
+      setTimeout(() => {
+        emailInput.style.borderColor = 'rgba(139,92,246,0.2)';
+      }, 2000);
+    }
+  });
+
+  // ===== LAUNCH APP BUTTON =====
+  document.getElementById('launch-app-btn-o5p6').addEventListener('click', () => {
+    alert('QRON App launching soon. Stay tuned!');
+  });
+</script>
+</body>
+</html>
